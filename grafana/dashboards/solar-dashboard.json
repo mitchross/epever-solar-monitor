@@ -21,10 +21,7 @@
       "type": "row"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": null,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -78,10 +75,7 @@
       ]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": null,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -135,10 +129,7 @@
       ]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": null,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -194,10 +185,7 @@
       ]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": null,
       "fieldConfig": {
         "defaults": {
           "unit": "watt",
@@ -249,10 +237,7 @@
       ]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": null,
       "fieldConfig": {
         "defaults": {
           "unit": "celsius",
@@ -308,10 +293,7 @@
       ]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": null,
       "fieldConfig": {
         "defaults": {
           "unit": "celsius",
@@ -379,10 +361,7 @@
       "type": "row"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": null,
       "fieldConfig": {
         "defaults": {
           "unit": "watt",
@@ -474,10 +453,7 @@
       ]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": null,
       "fieldConfig": {
         "defaults": {
           "unit": "volt",
@@ -562,10 +538,7 @@
       "type": "row"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": null,
       "fieldConfig": {
         "defaults": {
           "unit": "percent",
@@ -623,10 +596,7 @@
       ]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": null,
       "fieldConfig": {
         "defaults": {
           "unit": "amp",
@@ -711,10 +681,7 @@
       "type": "row"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": null,
       "fieldConfig": {
         "defaults": {
           "unit": "kwatth",
@@ -758,10 +725,7 @@
       ]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": null,
       "fieldConfig": {
         "defaults": {
           "unit": "kwatth",
@@ -805,10 +769,7 @@
       ]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": null,
       "fieldConfig": {
         "defaults": {
           "unit": "kwatth",
@@ -852,10 +813,7 @@
       ]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": null,
       "fieldConfig": {
         "defaults": {
           "unit": "kwatth",
@@ -911,10 +869,7 @@
       "type": "row"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": null,
       "fieldConfig": {
         "defaults": {
           "mappings": [
@@ -995,10 +950,7 @@
       ]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": null,
       "fieldConfig": {
         "defaults": {
           "custom": {

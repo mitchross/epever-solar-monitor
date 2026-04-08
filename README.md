@@ -4,7 +4,9 @@ Modern monitoring and control for **Epever/EPSolar MPPT** solar charge controlle
 
 Replaces Node-RED with a single Docker stack: live web dashboard, REST API for settings control, Prometheus metrics, and a pre-built Grafana dashboard.
 
-![Web UI](docs/screenshot-placeholder.png)
+| Web Dashboard | Settings | Grafana |
+|:---:|:---:|:---:|
+| ![Web UI](docs/webui-dashboard.png) | ![Settings](docs/webui-settings.png) | ![Grafana](docs/grafana-dashboard.png) |
 
 ## Features
 
