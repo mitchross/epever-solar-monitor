@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solar MPPT Monitor</title>
+<style>
+  :root {
+    --bg: #0f1117; --card: #1a1d27; --border: #2a2d3a;
+    --text: #e1e4ed; --muted: #8b8fa3; --accent: #f0c000;
+    --green: #22c55e; --red: #ef4444; --orange: #f97316; --blue: #3b82f6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  .header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .header h1 { font-size: 1.25rem; font-weight: 600; }
+  .header h1 span { color: var(--accent); }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .status-dot.up { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-dot.down { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .status-text { font-size: 0.8rem; color: var(--muted); }
+  .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+  .grid { display: grid; gap: 1rem; }
+  .grid-6 { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .grid-2 { grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+  .card-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 0.5rem; }
+  .card-value { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .card-unit { font-size: 0.875rem; font-weight: 400; color: var(--muted); margin-left: 2px; }
+  .card-sub { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
+  .section-title { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 1.5rem 0 0.75rem; }
+
+  /* SOC Gauge */
+  .soc-gauge { text-align: center; padding: 1.5rem; }
+  .soc-ring { position: relative; width: 140px; height: 140px; margin: 0 auto 0.75rem; }
+  .soc-ring svg { transform: rotate(-90deg); }
+  .soc-ring .bg { stroke: var(--border); }
+  .soc-ring .fill { stroke-linecap: round; transition: stroke-dashoffset 1s ease, stroke 0.5s; }
+  .soc-pct { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 2rem; font-weight: 700; }
+
+  /* Power Flow */
+  .flow { display: flex; align-items: center; justify-content: center; gap: 1rem; padding: 1.5rem 1rem; flex-wrap: wrap; }
+  .flow-node { text-align: center; min-width: 100px; }
+  .flow-icon { font-size: 2rem; margin-bottom: 0.25rem; }
+  .flow-val { font-size: 1.25rem; font-weight: 600; }
+  .flow-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; }
+  .flow-arrow { color: var(--muted); font-size: 1.5rem; }
+  .flow-arrow.active { color: var(--accent); }
+
+  /* Charging State */
+  .charge-state { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+  .charge-state.not_charging { background: #1e293b; color: #94a3b8; }
+  .charge-state.float { background: #052e16; color: #4ade80; }
+  .charge-state.boost { background: #422006; color: #fbbf24; }
+  .charge-state.equalize { background: #431407; color: #fb923c; }
+
+  /* Settings */
+  .settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.75rem; }
+  .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 0.625rem 0.875rem; background: var(--bg); border-radius: 8px; font-size: 0.85rem; }
+  .setting-name { color: var(--muted); }
+  .setting-val { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* Energy */
+  .energy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; }
+  .energy-item { text-align: center; padding: 0.75rem; background: var(--bg); border-radius: 8px; }
+  .energy-val { font-size: 1.25rem; font-weight: 700; color: var(--accent); }
+  .energy-label { font-size: 0.7rem; color: var(--muted); margin-top: 0.25rem; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+  .tab { padding: 0.5rem 1rem; font-size: 0.85rem; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  @media (max-width: 600px) {
+    .grid-6 { grid-template-columns: repeat(3, 1fr); }
+    .grid-2 { grid-template-columns: 1fr; }
+    .card-value { font-size: 1.5rem; }
+    .flow { gap: 0.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span>&#9728;</span> Solar MPPT Monitor</h1>
+  <div>
+    <span class="status-dot" id="statusDot"></span>
+    <span class="status-text" id="statusText">Connecting...</span>
+  </div>
+</div>
+
+<div class="container">
+  <!-- Power Flow -->
+  <div class="card flow" id="powerFlow">
+    <div class="flow-node">
+      <div class="flow-icon">&#9728;&#65039;</div>
+      <div class="flow-val" id="pvPower">--</div>
+      <div class="flow-label">Solar</div>
+    </div>
+    <div class="flow-arrow" id="arrow1">&#10132;</div>
+    <div class="flow-node">
+      <div class="flow-icon">&#9889;</div>
+      <div class="flow-val" id="chargePower">--</div>
+      <div class="flow-label">Charging</div>
+    </div>
+    <div class="flow-arrow" id="arrow2">&#10132;</div>
+    <div class="flow-node soc-gauge">
+      <div class="soc-ring">
+        <svg width="140" height="140" viewBox="0 0 140 140">
+          <circle class="bg" cx="70" cy="70" r="60" fill="none" stroke-width="10"/>
+          <circle class="fill" id="socRing" cx="70" cy="70" r="60" fill="none" stroke-width="10"
+            stroke-dasharray="377" stroke-dashoffset="377"/>
+        </svg>
+        <div class="soc-pct" id="socPct">--%</div>
+      </div>
+      <div class="flow-label">Battery</div>
+    </div>
+    <div class="flow-arrow" id="arrow3">&#10132;</div>
+    <div class="flow-node">
+      <div class="flow-icon">&#128161;</div>
+      <div class="flow-val" id="loadPower">--</div>
+      <div class="flow-label">Load</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('dashboard')">Dashboard</div>
+    <div class="tab" onclick="switchTab('settings')">Settings</div>
+  </div>
+
+  <div class="tab-content active" id="tab-dashboard">
+    <!-- Live Stats -->
+    <div class="section-title">Live Readings</div>
+    <div class="grid grid-6">
+      <div class="card"><div class="card-label">Battery</div><div class="card-value" id="batV">--<span class="card-unit">V</span></div><div class="card-sub" id="batStatus">--</div></div>
+      <div class="card"><div class="card-label">Solar Panel</div><div class="card-value" id="pvV">--<span class="card-unit">V</span></div><div class="card-sub" id="pvI">-- A</div></div>
+      <div class="card"><div class="card-label">Load</div><div class="card-value" id="loadV">--<span class="card-unit">V</span></div><div class="card-sub" id="loadI">-- A</div></div>
+      <div class="card"><div class="card-label">Battery Temp</div><div class="card-value" id="batTemp">--<span class="card-unit">&deg;C</span></div></div>
+      <div class="card"><div class="card-label">Controller Temp</div><div class="card-value" id="devTemp">--<span class="card-unit">&deg;C</span></div></div>
+      <div class="card"><div class="card-label">Charge State</div><div class="card-value"><span class="charge-state" id="chargeState">--</span></div></div>
+    </div>
+
+    <!-- Energy -->
+    <div class="section-title">Energy</div>
+    <div class="card">
+      <div class="energy-grid">
+        <div class="energy-item"><div class="energy-val" id="genToday">--</div><div class="energy-label">Generated Today</div></div>
+        <div class="energy-item"><div class="energy-val" id="genMonth">--</div><div class="energy-label">This Month</div></div>
+        <div class="energy-item"><div class="energy-val" id="genYear">--</div><div class="energy-label">This Year</div></div>
+        <div class="energy-item"><div class="energy-val" id="genTotal">--</div><div class="energy-label">Lifetime</div></div>
+        <div class="energy-item"><div class="energy-val" id="conToday">--</div><div class="energy-label">Consumed Today</div></div>
+        <div class="energy-item"><div class="energy-val" id="conMonth">--</div><div class="energy-label">This Month</div></div>
+        <div class="energy-item"><div class="energy-val" id="conYear">--</div><div class="energy-label">This Year</div></div>
+        <div class="energy-item"><div class="energy-val" id="conTotal">--</div><div class="energy-label">Lifetime</div></div>
+      </div>
+    </div>
+
+    <!-- Today's Range -->
+    <div class="section-title">Today's Range</div>
+    <div class="grid grid-6" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+      <div class="card"><div class="card-label">PV Voltage</div><div class="card-value" style="font-size:1.25rem;" id="pvRange">-- &ndash; --<span class="card-unit">V</span></div></div>
+      <div class="card"><div class="card-label">Battery Voltage</div><div class="card-value" style="font-size:1.25rem;" id="batRange">-- &ndash; --<span class="card-unit">V</span></div></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="tab-settings">
+    <div class="section-title">Charge Controller Settings</div>
+    <div class="card">
+      <div class="settings-grid" id="settingsGrid">
+        <div class="setting-row"><span class="setting-name">Loading...</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const POLL_MS = 5000;
+const CHARGE_STATES = {0: 'not_charging', 1: 'float', 2: 'boost', 3: 'equalize'};
+const CHARGE_LABELS = {0: 'Not Charging', 1: 'Float', 2: 'Boost', 3: 'Equalize'};
+
+function $(id) { return document.getElementById(id); }
+function fmt(v, d=1) { return v != null ? Number(v).toFixed(d) : '--'; }
+
+function socColor(pct) {
+  if (pct < 20) return 'var(--red)';
+  if (pct < 50) return 'var(--orange)';
+  return 'var(--green)';
+}
+
+function updateDashboard(data) {
+  const r = data.realtime || {};
+  const s = data.status || {};
+
+  // Power flow
+  $('pvPower').textContent = fmt(r.pv_power, 0) + 'W';
+  $('chargePower').textContent = fmt(r.battery_charge_power, 0) + 'W';
+  $('loadPower').textContent = fmt(r.load_power, 0) + 'W';
+  $('arrow1').className = 'flow-arrow' + (r.pv_power > 0 ? ' active' : '');
+  $('arrow2').className = 'flow-arrow' + (r.battery_charge_power > 0 ? ' active' : '');
+  $('arrow3').className = 'flow-arrow' + (r.load_power > 0 ? ' active' : '');
+
+  // SOC gauge
+  const soc = r.battery_soc || 0;
+  const offset = 377 - (377 * soc / 100);
+  $('socRing').style.strokeDashoffset = offset;
+  $('socRing').style.stroke = socColor(soc);
+  $('socPct').textContent = fmt(soc, 0) + '%';
+
+  // Live readings
+  $('batV').innerHTML = fmt(r.battery_voltage, 2) + '<span class="card-unit">V</span>';
+  $('pvV').innerHTML = fmt(r.pv_voltage, 1) + '<span class="card-unit">V</span>';
+  $('pvI').textContent = fmt(r.pv_current, 2) + ' A';
+  $('loadV').innerHTML = fmt(r.load_voltage, 2) + '<span class="card-unit">V</span>';
+  $('loadI').textContent = fmt(r.load_current, 2) + ' A';
+  $('batTemp').innerHTML = fmt(r.battery_temp, 1) + '<span class="card-unit">\u00B0C</span>';
+  $('devTemp').innerHTML = fmt(r.device_temp, 1) + '<span class="card-unit">\u00B0C</span>';
+
+  // Battery status
+  const bs = s.battery || {};
+  $('batStatus').textContent = (bs.voltage_status || '--') + ' / ' + (bs.temperature_status || '--');
+
+  // Charge state
+  const cs = s.charging || {};
+  const stateKey = cs.charging_state || 'not_charging';
+  const stateIdx = Object.values(CHARGE_STATES).indexOf(stateKey);
+  $('chargeState').textContent = CHARGE_LABELS[stateIdx] || stateKey;
+  $('chargeState').className = 'charge-state ' + stateKey;
+
+  // Energy
+  $('genToday').textContent = fmt(r.generated_energy_today, 2) + ' kWh';
+  $('genMonth').textContent = fmt(r.generated_energy_month, 1) + ' kWh';
+  $('genYear').textContent = fmt(r.generated_energy_year, 1) + ' kWh';
+  $('genTotal').textContent = fmt(r.generated_energy_total, 0) + ' kWh';
+  $('conToday').textContent = fmt(r.consumed_energy_today, 2) + ' kWh';
+  $('conMonth').textContent = fmt(r.consumed_energy_month, 1) + ' kWh';
+  $('conYear').textContent = fmt(r.consumed_energy_year, 1) + ' kWh';
+  $('conTotal').textContent = fmt(r.consumed_energy_total, 0) + ' kWh';
+
+  // Today's range
+  $('pvRange').innerHTML = fmt(r.min_pv_voltage_today, 1) + ' \u2013 ' + fmt(r.max_pv_voltage_today, 1) + '<span class="card-unit">V</span>';
+  $('batRange').innerHTML = fmt(r.min_battery_voltage_today, 2) + ' \u2013 ' + fmt(r.max_battery_voltage_today, 2) + '<span class="card-unit">V</span>';
+}
+
+function updateSettings(data) {
+  const grid = $('settingsGrid');
+  grid.innerHTML = '';
+  for (const [key, info] of Object.entries(data)) {
+    const div = document.createElement('div');
+    div.className = 'setting-row';
+    const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    let val = typeof info.value === 'boolean' ? (info.value ? 'ON' : 'OFF') : fmt(info.value, info.unit === 'Ah' || info.unit === '' ? 0 : 2);
+    if (info.value_name) val = info.value_name.replace(/_/g, ' ');
+    const unit = info.unit && typeof info.value !== 'boolean' ? ' ' + info.unit : '';
+    div.innerHTML = '<span class="setting-name">' + label + '</span><span class="setting-val">' + val + unit + '</span>';
+    grid.appendChild(div);
+  }
+}
+
+async function poll() {
+  try {
+    const [statusRes, settingsRes] = await Promise.all([
+      fetch('/status'),
+      fetch('/settings')
+    ]);
+    if (statusRes.ok) {
+      const data = await statusRes.json();
+      updateDashboard(data);
+      $('statusDot').className = 'status-dot up';
+      $('statusText').textContent = 'Connected \u2022 ' + new Date(data.timestamp * 1000).toLocaleTimeString();
+    } else {
+      $('statusDot').className = 'status-dot down';
+      $('statusText').textContent = 'No data from controller';
+    }
+    if (settingsRes.ok) updateSettings(await settingsRes.json());
+  } catch (e) {
+    $('statusDot').className = 'status-dot down';
+    $('statusText').textContent = 'Connection lost';
+  }
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  $('tab-' + name).classList.add('active');
+}
+
+poll();
+setInterval(poll, POLL_MS);
+</script>
+</body>
+</html>
