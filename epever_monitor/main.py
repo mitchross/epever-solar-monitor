@@ -23,7 +23,7 @@ from .registers import (
     STAT_REGISTERS,
 )
 from .ble_bms import DalyBMSClient, VictronBLEClient
-from .bms_metrics import update_daly_metrics, update_victron_metrics
+from .bms_metrics import update_daly_metrics, update_victron_metrics, update_bank_metrics
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
@@ -98,6 +98,8 @@ async def ble_poll_loop():
             if daly_client:
                 data = await daly_client.read()
                 update_daly_metrics(data)
+                # Update estimated bank metrics (Daly SOC + MPPT charge data)
+                update_bank_metrics(daly_client.data, client.last_data)
         except Exception as e:
             logger.error(f"BLE poll error: {e}")
         await asyncio.sleep(BLE_POLL_INTERVAL)

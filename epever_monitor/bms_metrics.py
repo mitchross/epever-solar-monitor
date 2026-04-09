@@ -38,9 +38,44 @@ def update_daly_metrics(data):
     daly_discharge_mos.set(int(data.discharge_mos))
 
 
+# ── Estimated Bank Gauges ─────────────────────────────────────────────
+
+bank_estimated_soc = Gauge("battery_bank_estimated_soc_percent", "Estimated battery bank SOC (from Daly BMS coulomb counting)", registry=REGISTRY)
+bank_discharge_power = Gauge("battery_bank_discharge_power_watts", "Estimated discharge power (Daly voltage x current when discharging)", registry=REGISTRY)
+bank_charge_power = Gauge("battery_bank_charge_power_watts", "Current charge power from MPPT", registry=REGISTRY)
+bank_net_power = Gauge("battery_bank_net_power_watts", "Net power flow (positive=charging, negative=discharging)", registry=REGISTRY)
+
+
 def update_victron_metrics(data):
     """Update Victron Prometheus gauges."""
     if data.timestamp == 0:
         return
     victron_voltage.set(data.voltage)
     victron_temp.set(data.temperature)
+
+
+def update_bank_metrics(daly_data, mppt_data):
+    """Update estimated bank metrics from best available sources.
+    
+    SOC: Uses Daly BMS coulomb counting (most accurate).
+    Power: Uses Daly current for discharge, MPPT for charge.
+    """
+    if daly_data and daly_data.timestamp > 0:
+        bank_estimated_soc.set(daly_data.soc)
+        
+        # Discharge power from Daly (current is negative when discharging)
+        if daly_data.current < 0:
+            discharge_w = daly_data.voltage * abs(daly_data.current)
+            bank_discharge_power.set(round(discharge_w, 1))
+        else:
+            bank_discharge_power.set(0)
+    
+    if mppt_data:
+        charge_w = mppt_data.get("battery_charge_power", 0)
+        bank_charge_power.set(charge_w)
+        
+        # Net power: charge minus discharge
+        daly_current = daly_data.current if (daly_data and daly_data.timestamp > 0) else 0
+        daly_voltage = daly_data.voltage if (daly_data and daly_data.timestamp > 0) else 0
+        net = charge_w + (daly_voltage * daly_current)  # current is already signed
+        bank_net_power.set(round(net, 1))
