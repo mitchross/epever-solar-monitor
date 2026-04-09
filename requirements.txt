@@ -4,3 +4,5 @@ pymodbus==3.9.2
 pyserial==3.5
 prometheus-client==0.22.1
 pydantic==2.11.2
+bleak==0.22.3
+victron-ble==0.9.3

@@ -22,6 +22,8 @@ from .registers import (
     REALTIME_REGISTERS,
     STAT_REGISTERS,
 )
+from .ble_bms import DalyBMSClient, VictronBLEClient
+from .bms_metrics import update_daly_metrics, update_victron_metrics
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
@@ -34,7 +36,17 @@ SERIAL_PORT = os.getenv("SERIAL_PORT", "/dev/ttyUSB0")
 BAUD_RATE = int(os.getenv("BAUD_RATE", "115200"))
 POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "10"))
 
+# BLE BMS configuration
+DALY_BMS_ADDRESS = os.getenv("DALY_BMS_ADDRESS", "")
+VICTRON_ADDRESS = os.getenv("VICTRON_ADDRESS", "")
+VICTRON_KEY = os.getenv("VICTRON_ENCRYPTION_KEY", "")
+BLE_POLL_INTERVAL = int(os.getenv("BLE_POLL_INTERVAL", "30"))
+
 client = EpeverClient(port=SERIAL_PORT, baudrate=BAUD_RATE)
+
+# BLE clients (initialized if addresses are configured)
+daly_client = DalyBMSClient(DALY_BMS_ADDRESS) if DALY_BMS_ADDRESS else None
+victron_client = VictronBLEClient(VICTRON_ADDRESS, VICTRON_KEY) if VICTRON_ADDRESS else None
 
 
 async def poll_loop():
@@ -67,6 +79,30 @@ async def poll_loop():
         await asyncio.sleep(POLL_INTERVAL)
 
 
+
+async def ble_poll_loop():
+    """Background task that reads BLE BMS devices on a fixed interval.
+    
+    Daly requires a BLE connection (takes ~8s), Victron uses passive
+    advertisement scanning (takes ~8s). We add a delay between them
+    so the BLE adapter can reset between connection and scan modes.
+    """
+    while True:
+        try:
+            # Victron first (passive BLE scan) before Daly (active connection)
+            # to avoid BLE adapter contention
+            if victron_client:
+                data = await victron_client.read()
+                update_victron_metrics(data)
+                await asyncio.sleep(2)
+            if daly_client:
+                data = await daly_client.read()
+                update_daly_metrics(data)
+        except Exception as e:
+            logger.error(f"BLE poll error: {e}")
+        await asyncio.sleep(BLE_POLL_INTERVAL)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Start background polling on app startup."""
@@ -76,9 +112,20 @@ async def lifespan(app: FastAPI):
         "poll_interval": str(POLL_INTERVAL),
     })
     task = asyncio.create_task(poll_loop())
+    ble_task = None
+    if daly_client or victron_client:
+        ble_task = asyncio.create_task(ble_poll_loop())
+        devices = []
+        if daly_client:
+            devices.append(f"Daly={DALY_BMS_ADDRESS}")
+        if victron_client:
+            devices.append(f"Victron={VICTRON_ADDRESS}")
+        logger.info(f"BLE BMS polling started: {", ".join(devices)} interval={BLE_POLL_INTERVAL}s")
     logger.info(f"Epever Solar Monitor started (port={SERIAL_PORT}, interval={POLL_INTERVAL}s)")
     yield
     task.cancel()
+    if ble_task:
+        ble_task.cancel()
     client.disconnect()
 
 
@@ -191,6 +238,37 @@ def update_setting(setting_name: str, body: SettingUpdate):
         "value": body.value,
         "status": "written",
     }
+
+
+@app.get("/bms", tags=["BMS"])
+def bms_status():
+    """Current BMS data from Daly and Victron BLE devices."""
+    result = {}
+    if daly_client and daly_client.data.timestamp > 0:
+        d = daly_client.data
+        result["daly"] = {
+            "voltage": d.voltage,
+            "current": d.current,
+            "soc": d.soc,
+            "max_cell_voltage": d.max_cell_voltage,
+            "min_cell_voltage": d.min_cell_voltage,
+            "cell_delta": round(d.cell_delta, 4),
+            "max_temp": d.max_temp,
+            "min_temp": d.min_temp,
+            "charge_mos": d.charge_mos,
+            "discharge_mos": d.discharge_mos,
+            "timestamp": d.timestamp,
+        }
+    if victron_client and victron_client.data.timestamp > 0:
+        v = victron_client.data
+        result["victron"] = {
+            "voltage": v.voltage,
+            "temperature": v.temperature,
+            "timestamp": v.timestamp,
+        }
+    if not result:
+        return {"message": "No BMS devices configured or no data yet"}
+    return result
 
 
 @app.get("/registers", tags=["Reference"])

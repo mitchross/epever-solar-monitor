@@ -10,11 +10,16 @@ services:
       - "${METRICS_PORT:-9812}:8080"
     volumes:
       - /dev:/dev
+      - /var/run/dbus:/var/run/dbus
     environment:
       - SERIAL_PORT=${SERIAL_PORT:-/dev/ttyUSB0}
       - BAUD_RATE=${BAUD_RATE:-115200}
       - POLL_INTERVAL=${POLL_INTERVAL:-10}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - DALY_BMS_ADDRESS=${DALY_BMS_ADDRESS:-}
+      - VICTRON_ADDRESS=${VICTRON_ADDRESS:-}
+      - VICTRON_ENCRYPTION_KEY=${VICTRON_ENCRYPTION_KEY:-}
+      - BLE_POLL_INTERVAL=${BLE_POLL_INTERVAL:-30}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
       interval: 30s
