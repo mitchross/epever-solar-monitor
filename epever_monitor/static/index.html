@@ -143,6 +143,18 @@
       <div class="card"><div class="card-label">Charge State</div><div class="card-value"><span class="charge-state" id="chargeState">--</span></div></div>
     </div>
 
+    <!-- BMS Battery Monitoring -->
+    <div class="section-title">Battery BMS</div>
+    <div class="grid grid-6">
+      <div class="card"><div class="card-label">Daly 100Ah SOC</div><div class="card-value" id="dalySoc">--<span class="card-unit">%</span></div><div class="card-sub" id="dalyCurrent">-- A</div></div>
+      <div class="card"><div class="card-label">Daly 100Ah Voltage</div><div class="card-value" id="dalyV">--<span class="card-unit">V</span></div><div class="card-sub" id="dalyDelta">&Delta; --V</div></div>
+      <div class="card"><div class="card-label">Victron 50Ah Voltage</div><div class="card-value" id="victronV">--<span class="card-unit">V</span></div><div class="card-sub" id="victronTemp">-- &deg;C</div></div>
+      <div class="card"><div class="card-label">Daly 100Ah Temp</div><div class="card-value" id="dalyTemp">--<span class="card-unit">&deg;C</span></div><div class="card-sub" id="dalyMos">MOS: --</div></div>
+      <div class="card"><div class="card-label">Bank Est. SOC</div><div class="card-value" id="bankSoc">--<span class="card-unit">%</span></div><div class="card-sub">(Daly coulomb count)</div></div>
+      <div class="card"><div class="card-label">Net Power</div><div class="card-value" id="bankNet">--<span class="card-unit">W</span></div><div class="card-sub" id="bankNetLabel">--</div></div>
+    </div>
+
+
     <!-- Energy -->
     <div class="section-title">Energy</div>
     <div class="card">
@@ -261,9 +273,10 @@ function updateSettings(data) {
 
 async function poll() {
   try {
-    const [statusRes, settingsRes] = await Promise.all([
+    const [statusRes, settingsRes, bmsRes] = await Promise.all([
       fetch('/status'),
-      fetch('/settings')
+      fetch('/settings'),
+      fetch('/bms')
     ]);
     if (statusRes.ok) {
       const data = await statusRes.json();
@@ -275,9 +288,37 @@ async function poll() {
       $('statusText').textContent = 'No data from controller';
     }
     if (settingsRes.ok) updateSettings(await settingsRes.json());
+    if (bmsRes.ok) updateBMS(await bmsRes.json());
   } catch (e) {
     $('statusDot').className = 'status-dot down';
     $('statusText').textContent = 'Connection lost';
+  }
+}
+
+function updateBMS(data) {
+  // Daly 100Ah
+  if (data.daly) {
+    const d = data.daly;
+    .innerHTML = fmt(d.soc, 0) + '<span class="card-unit">%</span>';
+    .textContent = fmt(d.current, 1) + ' A';
+    .innerHTML = fmt(d.voltage, 2) + '<span class="card-unit">V</span>';
+    .textContent = 'Δ ' + fmt(d.cell_delta, 4) + 'V';
+    .innerHTML = fmt(d.max_temp, 0) + '<span class="card-unit">°C</span>';
+    const chg = d.charge_mos ? 'ON' : 'OFF';
+    const dis = d.discharge_mos ? 'ON' : 'OFF';
+    .textContent = 'Chg:' + chg + ' Dis:' + dis;
+    // Bank SOC from Daly (best source)
+    .innerHTML = fmt(d.soc, 0) + '<span class="card-unit">%</span>';
+    // Net power
+    const netW = d.voltage * d.current;
+    .innerHTML = fmt(Math.abs(netW), 1) + '<span class="card-unit">W</span>';
+    .textContent = netW >= 0 ? 'charging' : 'discharging';
+  }
+  // Victron 50Ah
+  if (data.victron) {
+    const v = data.victron;
+    .innerHTML = fmt(v.voltage, 2) + '<span class="card-unit">V</span>';
+    .innerHTML = fmt(v.temperature, 1) + ' °C';
   }
 }
 
