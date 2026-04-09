@@ -51,40 +51,44 @@ class DalyBMSClient:
         if len(data) >= 4 and data[0] == 0xA5:
             self._responses[data[2]] = bytes(data)
 
-    async def read(self) -> DalyData:
-        """Connect, read all registers, disconnect. Returns DalyData."""
+    async def read(self, max_retries: int = 4) -> DalyData:
+        """Connect, read all registers, disconnect. Retries on BLE sleep."""
         from bleak import BleakClient
 
-        try:
-            async with BleakClient(self.address, timeout=10) as client:
-                if not client.is_connected:
-                    logger.warning(f"Daly BMS {self.address}: connection failed")
-                    return self.data
+        for attempt in range(max_retries):
+            try:
+                async with BleakClient(self.address, timeout=10) as client:
+                    if not client.is_connected:
+                        raise ConnectionError("connection failed")
 
-                self._responses.clear()
-                await client.start_notify(self.NOTIFY_CHAR, self._handle_notify)
-                await asyncio.sleep(0.3)
+                    self._responses.clear()
+                    await client.start_notify(self.NOTIFY_CHAR, self._handle_notify)
+                    await asyncio.sleep(0.3)
 
-                # Read SOC, cell range, temps, MOS status
-                for cmd in [0x90, 0x91, 0x92, 0x93]:
-                    await client.write_gatt_char(
-                        self.WRITE_CHAR,
-                        self._build_cmd(cmd),
-                        response=False,
-                    )
-                    await asyncio.sleep(0.4)
+                    for cmd in [0x90, 0x91, 0x92, 0x93]:
+                        await client.write_gatt_char(
+                            self.WRITE_CHAR,
+                            self._build_cmd(cmd),
+                            response=False,
+                        )
+                        await asyncio.sleep(0.4)
 
-                await client.stop_notify(self.NOTIFY_CHAR)
+                    await client.stop_notify(self.NOTIFY_CHAR)
 
-            self._decode()
-            self.data.timestamp = time.time()
-            logger.info(
-                f"Daly BMS: {self.data.soc:.1f}% {self.data.voltage:.1f}V "
-                f"{self.data.current:.1f}A delta={self.data.cell_delta:.4f}V "
-                f"{self.data.min_temp:.0f}-{self.data.max_temp:.0f}°C"
-            )
-        except Exception as e:
-            logger.error(f"Daly BMS read error: {e}")
+                self._decode()
+                self.data.timestamp = time.time()
+                logger.info(
+                    f"Daly BMS: {self.data.soc:.1f}% {self.data.voltage:.1f}V "
+                    f"{self.data.current:.1f}A delta={self.data.cell_delta:.4f}V "
+                    f"{self.data.min_temp:.0f}-{self.data.max_temp:.0f}°C"
+                )
+                return self.data  # success, stop retrying
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    logger.debug(f"Daly BMS attempt {attempt+1}/{max_retries} failed, retrying in 3s")
+                    await asyncio.sleep(3)
+                else:
+                    logger.warning(f"Daly BMS unreachable after {max_retries} attempts (BLE sleep)")
 
         return self.data
 

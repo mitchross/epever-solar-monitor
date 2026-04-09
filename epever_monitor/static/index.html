@@ -296,29 +296,25 @@ async function poll() {
 }
 
 function updateBMS(data) {
-  // Daly 100Ah
   if (data.daly) {
-    const d = data.daly;
-    .innerHTML = fmt(d.soc, 0) + '<span class="card-unit">%</span>';
-    .textContent = fmt(d.current, 1) + ' A';
-    .innerHTML = fmt(d.voltage, 2) + '<span class="card-unit">V</span>';
-    .textContent = 'Δ ' + fmt(d.cell_delta, 4) + 'V';
-    .innerHTML = fmt(d.max_temp, 0) + '<span class="card-unit">°C</span>';
-    const chg = d.charge_mos ? 'ON' : 'OFF';
-    const dis = d.discharge_mos ? 'ON' : 'OFF';
-    .textContent = 'Chg:' + chg + ' Dis:' + dis;
-    // Bank SOC from Daly (best source)
-    .innerHTML = fmt(d.soc, 0) + '<span class="card-unit">%</span>';
-    // Net power
-    const netW = d.voltage * d.current;
-    .innerHTML = fmt(Math.abs(netW), 1) + '<span class="card-unit">W</span>';
-    .textContent = netW >= 0 ? 'charging' : 'discharging';
+    var d = data.daly;
+    document.getElementById("dalySoc").innerHTML = fmt(d.soc, 0) + '<span class="card-unit">%</span>';
+    document.getElementById("dalyCurrent").textContent = fmt(d.current, 1) + " A";
+    document.getElementById("dalyV").innerHTML = fmt(d.voltage, 2) + '<span class="card-unit">V</span>';
+    document.getElementById("dalyDelta").textContent = "\u0394 " + fmt(d.cell_delta, 4) + "V";
+    document.getElementById("dalyTemp").innerHTML = fmt(d.max_temp, 0) + '<span class="card-unit">\u00B0C</span>';
+    var chg = d.charge_mos ? "ON" : "OFF";
+    var dis = d.discharge_mos ? "ON" : "OFF";
+    document.getElementById("dalyMos").textContent = "Chg:" + chg + " Dis:" + dis;
+    document.getElementById("bankSoc").innerHTML = fmt(d.soc, 0) + '<span class="card-unit">%</span>';
+    var netW = d.voltage * d.current;
+    document.getElementById("bankNet").innerHTML = fmt(Math.abs(netW), 1) + '<span class="card-unit">W</span>';
+    document.getElementById("bankNetLabel").textContent = netW >= 0 ? "charging" : "discharging";
   }
-  // Victron 50Ah
   if (data.victron) {
-    const v = data.victron;
-    .innerHTML = fmt(v.voltage, 2) + '<span class="card-unit">V</span>';
-    .innerHTML = fmt(v.temperature, 1) + ' °C';
+    var v = data.victron;
+    document.getElementById("victronV").innerHTML = fmt(v.voltage, 2) + '<span class="card-unit">V</span>';
+    document.getElementById("victronTemp").innerHTML = fmt(v.temperature, 1) + " \u00B0C";
   }
 }
 
